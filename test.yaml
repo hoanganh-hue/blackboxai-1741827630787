@@ -1,0 +1,27 @@
+server:
+  host: localhost
+  port: 3000
+  
+database:
+  host: localhost
+  port: 5432
+  name: testdb
+  user: admin
+  
+logging:
+  level: info
+  file: logs/app.log
+  
+features:
+  - file_analysis
+  - command_execution
+  - python_integration
+  - websocket_support
+  
+environments:
+  development:
+    debug: true
+    cache: false
+  production:
+    debug: false
+    cache: true 

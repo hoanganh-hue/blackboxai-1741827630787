@@ -1,0 +1,251 @@
+openapi: 3.1.0
+
+servers:
+  - url: https://fancy-blindly-reptile.ngrok-free.app
+    description: Ngrok remote server
+
+info:
+  title: Hướng dẫn sử dụng API Hệ thống
+  description: |
+    # Hướng dẫn chi tiết cách sử dụng API
+    
+    ## Thông tin kết nối:
+    - URL: https://fancy-blindly-reptile.ngrok-free.app
+    - Port: 3000
+    - Method: POST/GET/DELETE
+
+    ## Xác thực:
+    - Không yêu cầu xác thực
+    - Đảm bảo kết nối internet ổn định
+
+    ## Định dạng dữ liệu:
+    - Request: application/json hoặc multipart/form-data
+    - Response: application/json
+    
+  version: 1.0.0
+
+paths:
+  # 1. Thông tin hệ thống
+  /api/system/info:
+    get:
+      operationId: getSystemInfo
+      summary: Lấy thông tin hệ thống
+      description: |
+        Trả về thông tin hệ thống: platform, CPU, RAM, uptime.
+        
+        Response:
+        ```json
+        {
+          "platform": "darwin",
+          "arch": "x64",
+          "hostname": "localhost",
+          "cpus": [...],
+          "totalMemory": 17179869184,
+          "freeMemory": 6442450944,
+          "uptime": 3600,
+          "loadavg": [1.5, 1.7, 1.8],
+          "userInfo": {...}
+        }
+        ```
+
+  # 2. Theo dõi hiệu năng
+  /api/system/performance:
+    get:
+      operationId: getSystemPerformance
+      summary: Theo dõi hiệu năng hệ thống
+      description: |
+        Trả về thông tin về hiệu năng CPU, RAM và tải hệ thống
+        
+        Ví dụ response:
+        ```json
+        {
+          "cpu": [...],
+          "memory": {
+            "total": 17179869184,
+            "free": 6442450944,
+            "usage": "62.45"
+          },
+          "loadavg": [1.5, 1.7, 1.8]
+        }
+        ```
+
+  # 3. Thực thi lệnh
+  /api/system/execute:
+    post:
+      operationId: executeCommand
+      summary: Thực thi lệnh hệ thống
+      description: |
+        Thực thi bất kỳ lệnh shell nào trên máy chủ
+        
+        Request body:
+        ```json
+        {
+          "command": "ls -la",
+          "directory": "/path/to/dir" // Tùy chọn
+        }
+        ```
+        
+        Response:
+        ```json
+        {
+          "success": true,
+          "output": "kết quả lệnh",
+          "directory": "/current/path"
+        }
+        ```
+
+  # 4. Quản lý File
+  /api/files/upload:
+    post:
+      operationId: uploadFile
+      summary: Tải file lên máy chủ
+      description: |
+        Tải file lên bất kỳ thư mục nào trên máy chủ
+        
+        Request body (multipart/form-data):
+        - file: File cần tải lên
+        - destination: Đường dẫn thư mục đích
+
+  /api/files/download/{filename}:
+    get:
+      operationId: downloadFile
+      summary: Tải file từ máy chủ
+      description: |
+        Tải file từ máy chủ về máy local
+        
+  /api/files/list:
+    get:
+      operationId: listFiles
+      summary: Liệt kê danh sách file
+      description: |
+        Trả về danh sách file trong thư mục
+        
+  /api/files/delete/{filename}:
+    delete:
+      operationId: deleteFile
+      summary: Xóa file
+      description: |
+        Xóa file khỏi máy chủ
+
+  # 5. Phân tích
+  /api/analyze/file:
+    post:
+      operationId: analyzeFile
+      summary: Phân tích file
+      description: |
+        Phân tích thông tin và nội dung file
+        
+        Request body:
+        ```json
+        {
+          "filePath": "/path/to/file"
+        }
+        ```
+
+  /api/analyze/apk:
+    post:
+      operationId: analyzeApk
+      summary: Phân tích APK
+      description: |
+        Phân tích thông tin và cấu trúc file APK
+        
+        Request body:
+        ```json
+        {
+          "apkPath": "/path/to/app.apk"
+        }
+        ```
+
+  # 6. Điều khiển GUI
+  /api/gui/click:
+    post:
+      operationId: mouseClick
+      summary: Click chuột
+      description: |
+        Thực hiện click chuột tại tọa độ x,y
+        
+        Request body:
+        ```json
+        {
+          "x": 100,
+          "y": 200
+        }
+        ```
+
+  /api/gui/type:
+    post:
+      operationId: typeText
+      summary: Gõ phím
+      description: |
+        Thực hiện gõ chuỗi ký tự
+        
+        Request body:
+        ```json
+        {
+          "text": "Hello world"
+        }
+        ```
+
+  /api/gui/screenshot:
+    get:
+      operationId: takeScreenshot
+      summary: Chụp màn hình
+      description: |
+        Chụp và trả về ảnh màn hình hiện tại
+
+components:
+  schemas:
+    SystemInfo:
+      type: object
+      properties:
+        platform:
+          type: string
+        arch:
+          type: string
+        hostname:
+          type: string
+        cpus:
+          type: array
+          items:
+            type: object
+            properties:
+              model:
+                type: string
+              speed:
+                type: number
+              times:
+                type: object
+                properties:
+                  user:
+                    type: number
+                  nice:
+                    type: number
+                  sys:
+                    type: number
+                  idle:
+                    type: number
+                  irq:
+                    type: number
+        totalMemory:
+          type: number
+        freeMemory:
+          type: number
+        uptime:
+          type: number
+        loadavg:
+          type: array
+          items:
+            type: number
+        userInfo:
+          type: object
+          properties:
+            username:
+              type: string
+            uid:
+              type: number
+            gid:
+              type: number
+            shell:
+              type: string
+            homedir:
+              type: string

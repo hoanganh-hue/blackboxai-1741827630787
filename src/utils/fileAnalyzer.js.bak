@@ -1,0 +1,1913 @@
+const fs = require('fs-extra');
+const path = require('path');
+const yaml = require('js-yaml');
+const crypto = require('crypto');
+const AdvancedLogger = require('./AdvancedLogger.js'); // Ensure logger is imported
+
+class FileAnalyzer {
+    constructor(logger) {
+        this.logger = logger || new AdvancedLogger(); // Use AdvancedLogger if no logger is provided
+        this.fileTypes = {
+            '.txt': { type: 'text', handler: this.analyzeTextFile.bind(this) },
+            '.log': { type: 'text', handler: this.analyzeTextFile.bind(this) },
+            '.md': { type: 'markdown', handler: this.analyzeTextFile.bind(this) },
+            '.js': { type: 'javascript', handler: this.analyzeJavaScriptFile.bind(this) },
+            '.json': { type: 'json', handler: this.analyzeJsonFile.bind(this) },
+            '.yaml': { type: 'yaml', handler: this.analyzeYamlFile.bind(this) },
+            '.csv': { type: 'csv', handler: this.analyzeCsvFile.bind(this) },
+            '.html': { type: 'html', handler: this.analyzeHtmlFile.bind(this) },
+            '.jpg': { type: 'image', handler: this.analyzeImageFile.bind(this) },
+            '.png': { type: 'image', handler: this.analyzeImageFile.bind(this) },
+            '.pdf': { type: 'document', handler: this.analyzeDocumentFile.bind(this) },
+            '.zip': { type: 'archive', handler: this.analyzeArchiveFile.bind(this) },
+            '.py': { type: 'python', handler: this.analyzePythonFile.bind(this) },
+            '.java': { type: 'java', handler: this.analyzeJavaFile.bind(this) },
+            '.class': { type: 'javaclass', handler: this.analyzeJavaClassFile.bind(this) },
+            '.dex': { type: 'dex', handler: this.analyzeDexFile.bind(this) },
+            '.cpp': { type: 'cpp', handler: this.analyzeCppFile.bind(this) },
+            '.c': { type: 'c', handler: this.analyzeCFile.bind(this) },
+            '.h': { type: 'header', handler: this.analyzeHeaderFile.bind(this) },
+            '.cs': { type: 'csharp', handler: this.analyzeCSharpFile.bind(this) },
+            '.vb': { type: 'visualbasic', handler: this.analyzeVisualBasicFile.bind(this) },
+            '.rb': { type: 'ruby', handler: this.analyzeRubyFile.bind(this) },
+            '.php': { type: 'php', handler: this.analyzePhpFile.bind(this) },
+            '.swift': { type: 'swift', handler: this.analyzeSwiftFile.bind(this) },
+            '.kt': { type: 'kotlin', handler: this.analyzeKotlinFile.bind(this) },
+            '.go': { type: 'golang', handler: this.analyzeGoFile.bind(this) },
+            '.rs': { type: 'rust', handler: this.analyzeRustFile.bind(this) },
+            '.ts': { type: 'typescript', handler: this.analyzeTypeScriptFile.bind(this) },
+            '.scala': { type: 'scala', handler: this.analyzeScalaFile.bind(this) },
+            '.dart': { type: 'dart', handler: this.analyzeDartFile.bind(this) },
+            '.asm': { type: 'assembly', handler: this.analyzeAssemblyFile.bind(this) },
+            '.s': { type: 'assembly', handler: this.analyzeAssemblyFile.bind(this) },
+            '.smali': { type: 'smali', handler: this.analyzeSmaliFile.bind(this) },
+            '.il': { type: 'msil', handler: this.analyzeMsilFile.bind(this) },
+            '.sh': { type: 'shell', handler: this.analyzeShellFile.bind(this) },
+            '.bat': { type: 'batch', handler: this.analyzeBatchFile.bind(this) },
+            '.ps1': { type: 'powershell', handler: this.analyzePowerShellFile.bind(this) },
+            '.lua': { type: 'lua', handler: this.analyzeLuaFile.bind(this) },
+            '.pl': { type: 'perl', handler: this.analyzePerlFile.bind(this) },
+            '.r': { type: 'r', handler: this.analyzeRFile.bind(this) },
+            '.css': { type: 'css', handler: this.analyzeCssFile.bind(this) },
+            '.scss': { type: 'scss', handler: this.analyzeScssFile.bind(this) },
+            '.less': { type: 'less', handler: this.analyzeLessFile.bind(this) },
+            '.xml': { type: 'xml', handler: this.analyzeXmlFile.bind(this) },
+            '.vue': { type: 'vue', handler: this.analyzeVueFile.bind(this) },
+            '.jsx': { type: 'jsx', handler: this.analyzeJsxFile.bind(this) },
+            '.tsx': { type: 'tsx', handler: this.analyzeTsxFile.bind(this) },
+            '.sql': { type: 'sql', handler: this.analyzeSqlFile.bind(this) },
+            '.hql': { type: 'hql', handler: this.analyzeHqlFile.bind(this) },
+            '.ini': { type: 'ini', handler: this.analyzeIniFile.bind(this) },
+            '.toml': { type: 'toml', handler: this.analyzeTomlFile.bind(this) },
+            '.conf': { type: 'conf', handler: this.analyzeConfFile.bind(this) },
+            '.proto': { type: 'protobuf', handler: this.analyzeProtobufFile.bind(this) },
+            '.wasm': { type: 'webassembly', handler: this.analyzeWebAssemblyFile.bind(this) },
+            '.sol': { type: 'solidity', handler: this.analyzeSolidityFile.bind(this) }
+        };
+    }
+
+    async analyzeFile(filePath) {
+        try {
+            const exists = await fs.pathExists(filePath);
+            if (!exists) {
+                throw new Error(`File not found: ${filePath}`);
+            }
+
+            const stats = await fs.stat(filePath);
+            const ext = path.extname(filePath).toLowerCase();
+            const fileType = this.fileTypes[ext] || { type: 'unknown', handler: this.analyzeUnknownFile.bind(this) };
+
+            const analysisResults = await fileType.handler(filePath);
+            this.logger.info(`Analyzed file: ${filePath}`, analysisResults);
+
+            return {
+                path: filePath,
+                name: path.basename(filePath),
+                extension: ext,
+                type: fileType.type,
+                size: stats.size,
+                created: stats.birthtime,
+                modified: stats.mtime,
+                accessed: stats.atime,
+                analysis: analysisResults
+            };
+
+        } catch (error) {
+            this.logger.error(`Error analyzing file ${filePath}:`, error);
+            throw error;
+        }
+    }
+
+    async analyzeTextFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        return {
+            lineCount: lines.length,
+            charCount: content.length,
+            wordCount: content.split(/\s+/).length,
+            isEmpty: content.trim().length === 0,
+            previewContent: content.slice(0, 1000),
+        };
+    }
+
+    async analyzeJavaScriptFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            imports: [],
+            exports: [],
+            classes: [],
+            functions: [],
+            variables: [],
+            lineCount: lines.length,
+            commentCount: 0,
+            hasAsync: false,
+            hasJSX: false
+        };
+
+        let currentClass = null;
+        let currentFunction = null;
+        let inComment = false;
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích imports
+            if (trimmedLine.startsWith('import ')) {
+                analysis.imports.push(trimmedLine);
+            }
+            
+            // Phân tích exports
+            else if (trimmedLine.startsWith('export ')) {
+                analysis.exports.push(trimmedLine);
+            }
+            
+            // Phân tích classes
+            else if (trimmedLine.startsWith('class ')) {
+                currentClass = {
+                    name: trimmedLine.split('class ')[1].split(' ')[0],
+                    methods: [],
+                    properties: []
+                };
+                analysis.classes.push(currentClass);
+            }
+            
+            // Phân tích functions
+            else if (trimmedLine.startsWith('function ') || trimmedLine.match(/^(const|let|var)\s+\w+\s*=\s*function/)) {
+                currentFunction = {
+                    name: trimmedLine.startsWith('function ') ? 
+                          trimmedLine.split('function ')[1].split('(')[0] :
+                          trimmedLine.split(/\s+/)[1],
+                    isAsync: trimmedLine.includes('async'),
+                    params: trimmedLine.split('(')[1]?.split(')')[0].split(',').map(p => p.trim()) || []
+                };
+                
+                if (currentFunction.isAsync) {
+                    analysis.hasAsync = true;
+                }
+                
+                if (currentClass) {
+                    currentClass.methods.push(currentFunction);
+                } else {
+                    analysis.functions.push(currentFunction);
+                }
+            }
+            
+            // Phân tích JSX
+            else if (trimmedLine.includes('</') || trimmedLine.includes('/>')) {
+                analysis.hasJSX = true;
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('//')) {
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.startsWith('/*')) {
+                inComment = true;
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.endsWith('*/')) {
+                inComment = false;
+            }
+            else if (inComment) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeCodeFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        let codeLines = 0, commentLines = 0, blankLines = 0;
+
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) {
+                blankLines++;
+            } else if (trimmed.startsWith('//') || trimmed.startsWith('#')) {
+                commentLines++;
+            } else {
+                codeLines++;
+            }
+        });
+
+        return {
+            totalLines: lines.length,
+            codeLines,
+            commentLines,
+            blankLines,
+            previewContent: content.slice(0, 1000),
+        };
+    }
+
+    async analyzeJsonFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        try {
+            const parsed = JSON.parse(content);
+            return {
+                isValid: true,
+                structure: this.analyzeStructure(parsed),
+                size: content.length,
+                previewContent: content.slice(0, 1000),
+            };
+        } catch (error) {
+            return {
+                isValid: false,
+                error: error.message,
+                previewContent: content.slice(0, 1000),
+            };
+        }
+    }
+
+    async analyzeYamlFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        try {
+            const parsed = yaml.load(content);
+            return {
+                isValid: true,
+                structure: this.analyzeStructure(parsed),
+                size: content.length,
+                previewContent: content.slice(0, 1000),
+            };
+        } catch (error) {
+            return {
+                isValid: false,
+                error: error.message,
+                previewContent: content.slice(0, 1000),
+            };
+        }
+    }
+
+    async analyzeImageFile(filePath) {
+        const stats = await fs.stat(filePath);
+        return {
+            size: stats.size,
+            format: await this.detectImageFormat(filePath),
+        };
+    }
+
+    async analyzeDocumentFile(filePath) {
+        const stats = await fs.stat(filePath);
+        return {
+            size: stats.size,
+            type: path.extname(filePath).toLowerCase(),
+        };
+    }
+
+    async analyzeArchiveFile(filePath) {
+        const stats = await fs.stat(filePath);
+        return {
+            size: stats.size,
+            format: path.extname(filePath).toLowerCase(),
+        };
+    }
+
+    analyzeStructure(data) {
+        if (Array.isArray(data)) {
+            return {
+                type: 'array',
+                length: data.length,
+                sample: data.slice(0, 3).map(item => this.analyzeStructure(item)),
+            };
+        } else if (data && typeof data === 'object') {
+            const structure = {};
+            for (const [key, value] of Object.entries(data)) {
+                structure[key] = this.analyzeStructure(value);
+            }
+            return structure;
+        } else {
+            return typeof data;
+        }
+    }
+
+    async analyzeUnknownFile(filePath) {
+        const stats = await fs.stat(filePath);
+        return {
+            size: stats.size,
+            type: 'unknown',
+        };
+    }
+
+    async analyzeCsvFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        const headers = lines[0].split(',').map(header => header.trim());
+        
+        return {
+            lineCount: lines.length,
+            columnCount: headers.length,
+            headers: headers,
+            rowCount: lines.length - 1, // Trừ đi dòng header
+            previewContent: content.slice(0, 1000),
+        };
+    }
+
+    async analyzeHtmlFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        
+        // Đếm số lượng các thẻ HTML phổ biến
+        const tagCounts = {
+            div: (content.match(/<div/g) || []).length,
+            p: (content.match(/<p/g) || []).length,
+            a: (content.match(/<a/g) || []).length,
+            img: (content.match(/<img/g) || []).length,
+            script: (content.match(/<script/g) || []).length,
+            style: (content.match(/<style/g) || []).length
+        };
+
+        return {
+            size: content.length,
+            tagCounts: tagCounts,
+            hasDoctype: content.toLowerCase().includes('<!doctype'),
+            hasHead: content.toLowerCase().includes('<head'),
+            hasBody: content.toLowerCase().includes('<body'),
+            previewContent: content.slice(0, 1000),
+        };
+    }
+
+    async detectImageFormat(filePath) {
+        // Placeholder for image format detection logic
+        return 'Unknown';
+    }
+
+    async analyzePythonFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            imports: [],
+            classes: [],
+            functions: [],
+            variables: [],
+            docstrings: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        let currentClass = null;
+        let currentFunction = null;
+        let inDocstring = false;
+        let docstringContent = '';
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích imports
+            if (trimmedLine.startsWith('import ') || trimmedLine.startsWith('from ')) {
+                analysis.imports.push(trimmedLine);
+            }
+            
+            // Phân tích classes
+            else if (trimmedLine.startsWith('class ')) {
+                currentClass = {
+                    name: trimmedLine.split('class ')[1].split('(')[0].trim(),
+                    methods: [],
+                    properties: []
+                };
+                analysis.classes.push(currentClass);
+            }
+            
+            // Phân tích functions
+            else if (trimmedLine.startsWith('def ')) {
+                const functionName = trimmedLine.split('def ')[1].split('(')[0].trim();
+                currentFunction = {
+                    name: functionName,
+                    params: trimmedLine.split('(')[1].split(')')[0].split(',').map(p => p.trim()),
+                    docstring: ''
+                };
+                
+                if (currentClass) {
+                    currentClass.methods.push(currentFunction);
+                } else {
+                    analysis.functions.push(currentFunction);
+                }
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('#')) {
+                analysis.commentCount++;
+            }
+            
+            // Phân tích docstrings
+            else if (trimmedLine.startsWith('"""') || trimmedLine.startsWith("'''")) {
+                if (!inDocstring) {
+                    inDocstring = true;
+                    docstringContent = trimmedLine.slice(3);
+                } else {
+                    inDocstring = false;
+                    if (currentFunction) {
+                        currentFunction.docstring = docstringContent;
+                    }
+                    analysis.docstrings.push(docstringContent);
+                    docstringContent = '';
+                }
+            }
+            else if (inDocstring) {
+                docstringContent += '\n' + line;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeSmaliFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            className: '',
+            superClass: '',
+            interfaces: [],
+            methods: [],
+            fields: [],
+            annotations: [],
+            lineCount: lines.length,
+            methodCount: 0,
+            fieldCount: 0
+        };
+
+        let currentMethod = null;
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích class name
+            if (trimmedLine.startsWith('.class')) {
+                analysis.className = trimmedLine.split(' ').pop();
+            }
+            
+            // Phân tích super class
+            else if (trimmedLine.startsWith('.super')) {
+                analysis.superClass = trimmedLine.split(' ').pop();
+            }
+            
+            // Phân tích interfaces
+            else if (trimmedLine.startsWith('.implements')) {
+                analysis.interfaces.push(trimmedLine.split(' ').pop());
+            }
+            
+            // Phân tích methods
+            else if (trimmedLine.startsWith('.method')) {
+                currentMethod = {
+                    signature: trimmedLine.substring(8),
+                    instructions: [],
+                    registers: 0,
+                    calls: []
+                };
+                analysis.methods.push(currentMethod);
+                analysis.methodCount++;
+            }
+            
+            // Phân tích fields
+            else if (trimmedLine.startsWith('.field')) {
+                analysis.fields.push(trimmedLine.substring(7));
+                analysis.fieldCount++;
+            }
+            
+            // Phân tích annotations
+            else if (trimmedLine.startsWith('.annotation')) {
+                analysis.annotations.push(trimmedLine);
+            }
+            
+            // Phân tích instructions trong method
+            else if (currentMethod && trimmedLine.startsWith('    ')) {
+                if (trimmedLine.includes('invoke-')) {
+                    currentMethod.calls.push(trimmedLine.trim());
+                }
+                currentMethod.instructions.push(trimmedLine.trim());
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeJavaFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            package: '',
+            imports: [],
+            classes: [],
+            interfaces: [],
+            methods: [],
+            fields: [],
+            annotations: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        let currentClass = null;
+        let currentMethod = null;
+        let inComment = false;
+        let inJavaDoc = false;
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích package
+            if (trimmedLine.startsWith('package ')) {
+                analysis.package = trimmedLine.split('package ')[1].split(';')[0].trim();
+            }
+            
+            // Phân tích imports
+            else if (trimmedLine.startsWith('import ')) {
+                analysis.imports.push(trimmedLine.split('import ')[1].split(';')[0].trim());
+            }
+            
+            // Phân tích annotations
+            else if (trimmedLine.startsWith('@')) {
+                analysis.annotations.push(trimmedLine);
+            }
+            
+            // Phân tích classes
+            else if (trimmedLine.startsWith('class ') || trimmedLine.startsWith('public class ')) {
+                currentClass = {
+                    name: trimmedLine.split('class ')[1].split(' ')[0],
+                    methods: [],
+                    fields: [],
+                    implements: [],
+                    extends: null
+                };
+                
+                if (trimmedLine.includes('extends ')) {
+                    currentClass.extends = trimmedLine.split('extends ')[1].split(' ')[0];
+                }
+                
+                if (trimmedLine.includes('implements ')) {
+                    currentClass.implements = trimmedLine.split('implements ')[1].split(',').map(i => i.trim());
+                }
+                
+                analysis.classes.push(currentClass);
+            }
+            
+            // Phân tích interfaces
+            else if (trimmedLine.startsWith('interface ') || trimmedLine.startsWith('public interface ')) {
+                analysis.interfaces.push(trimmedLine.split('interface ')[1].split(' ')[0]);
+            }
+            
+            // Phân tích methods
+            else if (trimmedLine.match(/^(public|private|protected)?\s*(static)?\s*\w+\s+\w+\s*\(/)) {
+                currentMethod = {
+                    signature: trimmedLine,
+                    returnType: trimmedLine.split(' ')[trimmedLine.split(' ').length - 2],
+                    name: trimmedLine.split(' ').pop().split('(')[0],
+                    parameters: trimmedLine.split('(')[1].split(')')[0].split(',').map(p => p.trim())
+                };
+                
+                if (currentClass) {
+                    currentClass.methods.push(currentMethod);
+                } else {
+                    analysis.methods.push(currentMethod);
+                }
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('//')) {
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.startsWith('/*')) {
+                inComment = true;
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.endsWith('*/')) {
+                inComment = false;
+            }
+            else if (inComment) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeJavaClassFile(filePath) {
+        const content = await fs.readFile(filePath);
+        
+        return {
+            size: content.length,
+            type: 'Java Class File',
+            message: 'Binary Java class file analysis requires additional tools'
+        };
+    }
+
+    async analyzeDexFile(filePath) {
+        const content = await fs.readFile(filePath);
+        
+        return {
+            size: content.length,
+            type: 'Dalvik Executable',
+            message: 'DEX file analysis requires additional tools'
+        };
+    }
+
+    async analyzeAPK(filePath) {
+        const AdmZip = require('adm-zip');
+        const zip = new AdmZip(filePath);
+        const entries = zip.getEntries();
+        
+        const analysis = {
+            manifest: null,
+            dexFiles: [],
+            resources: [],
+            assets: [],
+            libraries: [],
+            certificates: [],
+            totalFiles: entries.length
+        };
+
+        const extractPath = path.join(path.dirname(filePath), 'extracted_apk');
+        await fs.ensureDir(extractPath);
+        
+        for (const entry of entries) {
+            const fileName = entry.entryName;
+            const extractedPath = path.join(extractPath, fileName);
+            
+            // Tạo thư mục cho file nếu cần
+            await fs.ensureDir(path.dirname(extractedPath));
+            
+            // Giải nén file
+            zip.extractEntryTo(entry, extractPath, false, true);
+            
+            // Phân tích các file theo loại
+            if (fileName === 'AndroidManifest.xml') {
+                analysis.manifest = await this.analyzeManifest(extractedPath);
+            }
+            else if (fileName.endsWith('.dex')) {
+                const dexAnalysis = await this.analyzeDexFile(extractedPath);
+                analysis.dexFiles.push({
+                    name: fileName,
+                    ...dexAnalysis
+                });
+            }
+            else if (fileName.startsWith('res/')) {
+                analysis.resources.push(fileName);
+            }
+            else if (fileName.startsWith('assets/')) {
+                analysis.assets.push(fileName);
+            }
+            else if (fileName.endsWith('.so')) {
+                analysis.libraries.push(fileName);
+            }
+            else if (fileName.includes('META-INF/') && (fileName.endsWith('.RSA') || fileName.endsWith('.DSA'))) {
+                analysis.certificates.push(fileName);
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeManifest(filePath) {
+        // Đây là phân tích cơ bản, có thể mở rộng thêm
+        return {
+            path: filePath,
+            size: (await fs.stat(filePath)).size,
+            type: 'Android Manifest XML'
+        };
+    }
+
+    async analyzeCppFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            includes: [],
+            namespaces: [],
+            classes: [],
+            functions: [],
+            templates: [],
+            macros: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        let currentClass = null;
+        let currentFunction = null;
+        let inComment = false;
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích includes
+            if (trimmedLine.startsWith('#include')) {
+                analysis.includes.push(trimmedLine);
+            }
+            
+            // Phân tích macros
+            else if (trimmedLine.startsWith('#define')) {
+                analysis.macros.push(trimmedLine);
+            }
+            
+            // Phân tích namespaces
+            else if (trimmedLine.startsWith('namespace')) {
+                analysis.namespaces.push(trimmedLine.split('namespace ')[1].split('{')[0].trim());
+            }
+            
+            // Phân tích templates
+            else if (trimmedLine.startsWith('template')) {
+                analysis.templates.push(trimmedLine);
+            }
+            
+            // Phân tích classes
+            else if (trimmedLine.startsWith('class ')) {
+                currentClass = {
+                    name: trimmedLine.split('class ')[1].split(' ')[0],
+                    methods: [],
+                    members: []
+                };
+                analysis.classes.push(currentClass);
+            }
+            
+            // Phân tích functions
+            else if (trimmedLine.match(/^[a-zA-Z_][a-zA-Z0-9_]*\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\(/)) {
+                currentFunction = {
+                    returnType: trimmedLine.split(' ')[0],
+                    name: trimmedLine.split(' ')[1].split('(')[0],
+                    params: trimmedLine.split('(')[1]?.split(')')[0].split(',').map(p => p.trim()) || []
+                };
+                
+                if (currentClass) {
+                    currentClass.methods.push(currentFunction);
+                } else {
+                    analysis.functions.push(currentFunction);
+                }
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('//')) {
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.startsWith('/*')) {
+                inComment = true;
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.endsWith('*/')) {
+                inComment = false;
+            }
+            else if (inComment) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeRustFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            uses: [],
+            mods: [],
+            structs: [],
+            impls: [],
+            traits: [],
+            functions: [],
+            macros: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        let currentStruct = null;
+        let currentImpl = null;
+        let inComment = false;
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích uses
+            if (trimmedLine.startsWith('use ')) {
+                analysis.uses.push(trimmedLine);
+            }
+            
+            // Phân tích mods
+            else if (trimmedLine.startsWith('mod ')) {
+                analysis.mods.push(trimmedLine.split('mod ')[1].split(';')[0].trim());
+            }
+            
+            // Phân tích structs
+            else if (trimmedLine.startsWith('struct ')) {
+                currentStruct = {
+                    name: trimmedLine.split('struct ')[1].split(' ')[0],
+                    fields: []
+                };
+                analysis.structs.push(currentStruct);
+            }
+            
+            // Phân tích impls
+            else if (trimmedLine.startsWith('impl ')) {
+                currentImpl = {
+                    name: trimmedLine.split('impl ')[1].split(' ')[0],
+                    methods: []
+                };
+                analysis.impls.push(currentImpl);
+            }
+            
+            // Phân tích traits
+            else if (trimmedLine.startsWith('trait ')) {
+                analysis.traits.push(trimmedLine.split('trait ')[1].split(' ')[0]);
+            }
+            
+            // Phân tích functions
+            else if (trimmedLine.startsWith('fn ')) {
+                const func = {
+                    name: trimmedLine.split('fn ')[1].split('(')[0],
+                    params: trimmedLine.split('(')[1]?.split(')')[0].split(',').map(p => p.trim()) || [],
+                    returnType: trimmedLine.includes('->') ? trimmedLine.split('->')[1].trim() : 'unit'
+                };
+                
+                if (currentImpl) {
+                    currentImpl.methods.push(func);
+                } else {
+                    analysis.functions.push(func);
+                }
+            }
+            
+            // Phân tích macros
+            else if (trimmedLine.endsWith('!')) {
+                analysis.macros.push(trimmedLine);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('//')) {
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.startsWith('/*')) {
+                inComment = true;
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.endsWith('*/')) {
+                inComment = false;
+            }
+            else if (inComment) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeGoFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            package: '',
+            imports: [],
+            structs: [],
+            interfaces: [],
+            functions: [],
+            methods: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        let currentStruct = null;
+        let inComment = false;
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích package
+            if (trimmedLine.startsWith('package ')) {
+                analysis.package = trimmedLine.split('package ')[1];
+            }
+            
+            // Phân tích imports
+            else if (trimmedLine.startsWith('import ')) {
+                analysis.imports.push(trimmedLine.split('import ')[1]);
+            }
+            
+            // Phân tích structs
+            else if (trimmedLine.startsWith('type ') && trimmedLine.includes('struct')) {
+                currentStruct = {
+                    name: trimmedLine.split('type ')[1].split(' ')[0],
+                    fields: []
+                };
+                analysis.structs.push(currentStruct);
+            }
+            
+            // Phân tích interfaces
+            else if (trimmedLine.startsWith('type ') && trimmedLine.includes('interface')) {
+                analysis.interfaces.push(trimmedLine.split('type ')[1].split(' ')[0]);
+            }
+            
+            // Phân tích functions và methods
+            else if (trimmedLine.startsWith('func ')) {
+                const isMethod = trimmedLine.includes(')') && trimmedLine.split(')')[0].includes('(');
+                const func = {
+                    name: isMethod ? 
+                          trimmedLine.split(')')[1].split('(')[0].trim() :
+                          trimmedLine.split('func ')[1].split('(')[0],
+                    params: trimmedLine.split('(')[1]?.split(')')[0].split(',').map(p => p.trim()) || [],
+                    returnType: trimmedLine.includes('return') ? trimmedLine.split('return')[1].trim() : ''
+                };
+                
+                if (isMethod) {
+                    analysis.methods.push(func);
+                } else {
+                    analysis.functions.push(func);
+                }
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('//')) {
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.startsWith('/*')) {
+                inComment = true;
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.endsWith('*/')) {
+                inComment = false;
+            }
+            else if (inComment) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeTypeScriptFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            imports: [],
+            exports: [],
+            interfaces: [],
+            types: [],
+            classes: [],
+            functions: [],
+            decorators: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        let currentInterface = null;
+        let currentClass = null;
+        let inComment = false;
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích imports
+            if (trimmedLine.startsWith('import ')) {
+                analysis.imports.push(trimmedLine);
+            }
+            
+            // Phân tích exports
+            else if (trimmedLine.startsWith('export ')) {
+                analysis.exports.push(trimmedLine);
+            }
+            
+            // Phân tích interfaces
+            else if (trimmedLine.startsWith('interface ')) {
+                currentInterface = {
+                    name: trimmedLine.split('interface ')[1].split(' ')[0],
+                    properties: [],
+                    methods: []
+                };
+                analysis.interfaces.push(currentInterface);
+            }
+            
+            // Phân tích types
+            else if (trimmedLine.startsWith('type ')) {
+                analysis.types.push({
+                    name: trimmedLine.split('type ')[1].split(' ')[0],
+                    definition: trimmedLine
+                });
+            }
+            
+            // Phân tích decorators
+            else if (trimmedLine.startsWith('@')) {
+                analysis.decorators.push(trimmedLine);
+            }
+            
+            // Phân tích classes và methods
+            else if (trimmedLine.startsWith('class ')) {
+                currentClass = {
+                    name: trimmedLine.split('class ')[1].split(' ')[0],
+                    methods: [],
+                    properties: []
+                };
+                analysis.classes.push(currentClass);
+            }
+            
+            // Phân tích functions
+            else if (trimmedLine.match(/^(async\s+)?function\s+\w+/)) {
+                const func = {
+                    name: trimmedLine.split('function ')[1].split('(')[0],
+                    isAsync: trimmedLine.startsWith('async'),
+                    params: trimmedLine.split('(')[1]?.split(')')[0].split(',').map(p => p.trim()) || [],
+                    returnType: trimmedLine.includes(':') ? 
+                              trimmedLine.split(':')[1].split('{')[0].trim() : 
+                              'any'
+                };
+                analysis.functions.push(func);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('//')) {
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.startsWith('/*')) {
+                inComment = true;
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.endsWith('*/')) {
+                inComment = false;
+            }
+            else if (inComment) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeKotlinFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            package: '',
+            imports: [],
+            classes: [],
+            objects: [],
+            functions: [],
+            properties: [],
+            dataClasses: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        let currentClass = null;
+        let inComment = false;
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích package
+            if (trimmedLine.startsWith('package ')) {
+                analysis.package = trimmedLine.split('package ')[1];
+            }
+            
+            // Phân tích imports
+            else if (trimmedLine.startsWith('import ')) {
+                analysis.imports.push(trimmedLine.split('import ')[1]);
+            }
+            
+            // Phân tích data classes
+            else if (trimmedLine.startsWith('data class ')) {
+                analysis.dataClasses.push({
+                    name: trimmedLine.split('data class ')[1].split('(')[0],
+                    properties: trimmedLine.split('(')[1]?.split(')')[0].split(',').map(p => p.trim()) || []
+                });
+            }
+            
+            // Phân tích classes
+            else if (trimmedLine.startsWith('class ')) {
+                currentClass = {
+                    name: trimmedLine.split('class ')[1].split(' ')[0],
+                    methods: [],
+                    properties: []
+                };
+                analysis.classes.push(currentClass);
+            }
+            
+            // Phân tích objects
+            else if (trimmedLine.startsWith('object ')) {
+                analysis.objects.push({
+                    name: trimmedLine.split('object ')[1].split(' ')[0]
+                });
+            }
+            
+            // Phân tích functions
+            else if (trimmedLine.startsWith('fun ')) {
+                const func = {
+                    name: trimmedLine.split('fun ')[1].split('(')[0],
+                    params: trimmedLine.split('(')[1]?.split(')')[0].split(',').map(p => p.trim()) || [],
+                    returnType: trimmedLine.includes(':') ? 
+                              trimmedLine.split(':')[1].split('{')[0].trim() : 
+                              'Unit'
+                };
+                
+                if (currentClass) {
+                    currentClass.methods.push(func);
+                } else {
+                    analysis.functions.push(func);
+                }
+            }
+            
+            // Phân tích properties
+            else if (trimmedLine.startsWith('val ') || trimmedLine.startsWith('var ')) {
+                const prop = {
+                    name: trimmedLine.split(' ')[1],
+                    type: trimmedLine.includes(':') ? 
+                          trimmedLine.split(':')[1].split('=')[0].trim() : 
+                          'Any',
+                    isMutable: trimmedLine.startsWith('var ')
+                };
+                
+                if (currentClass) {
+                    currentClass.properties.push(prop);
+                } else {
+                    analysis.properties.push(prop);
+                }
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('//')) {
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.startsWith('/*')) {
+                inComment = true;
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.endsWith('*/')) {
+                inComment = false;
+            }
+            else if (inComment) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeAssemblyFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            instructions: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích instructions
+            if (trimmedLine.startsWith(';')) {
+                analysis.commentCount++;
+            } else {
+                analysis.instructions.push(trimmedLine);
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeMsilFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            instructions: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích instructions
+            if (trimmedLine.startsWith(';')) {
+                analysis.commentCount++;
+            } else {
+                analysis.instructions.push(trimmedLine);
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeShellFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            commands: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích commands
+            if (trimmedLine.startsWith('#')) {
+                analysis.commentCount++;
+            } else {
+                analysis.commands.push(trimmedLine);
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeBatchFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            commands: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích commands
+            if (trimmedLine.startsWith('@')) {
+                analysis.commentCount++;
+            } else {
+                analysis.commands.push(trimmedLine);
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzePowerShellFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            commands: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích commands
+            if (trimmedLine.startsWith('#')) {
+                analysis.commentCount++;
+            } else {
+                analysis.commands.push(trimmedLine);
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeLuaFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            functions: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích functions
+            if (trimmedLine.startsWith('function ')) {
+                const func = {
+                    name: trimmedLine.split('function ')[1].split('(')[0],
+                    params: trimmedLine.split('(')[1]?.split(')')[0].split(',').map(p => p.trim()) || [],
+                    returnType: trimmedLine.includes(':') ? 
+                              trimmedLine.split(':')[1].split('{')[0].trim() : 
+                              'any'
+                };
+                analysis.functions.push(func);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('--')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzePerlFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            functions: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích functions
+            if (trimmedLine.startsWith('sub ')) {
+                const func = {
+                    name: trimmedLine.split('sub ')[1].split('(')[0],
+                    params: trimmedLine.split('(')[1]?.split(')')[0].split(',').map(p => p.trim()) || [],
+                    returnType: trimmedLine.includes(':') ? 
+                              trimmedLine.split(':')[1].split('{')[0].trim() : 
+                              'any'
+                };
+                analysis.functions.push(func);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('#')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeRFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            functions: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích functions
+            if (trimmedLine.startsWith('function(')) {
+                const func = {
+                    name: trimmedLine.split('(')[1].split(')')[0],
+                    params: trimmedLine.split('(')[2]?.split(')')[0].split(',').map(p => p.trim()) || [],
+                    returnType: trimmedLine.includes(':') ? 
+                              trimmedLine.split(':')[1].split('{')[0].trim() : 
+                              'any'
+                };
+                analysis.functions.push(func);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('#')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeCssFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            selectors: [],
+            properties: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích selectors
+            if (trimmedLine.startsWith('.')) {
+                analysis.selectors.push(trimmedLine);
+            }
+            
+            // Phân tích properties
+            else if (trimmedLine.includes(':')) {
+                analysis.properties.push(trimmedLine);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('/*')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeScssFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            selectors: [],
+            properties: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích selectors
+            if (trimmedLine.startsWith('.')) {
+                analysis.selectors.push(trimmedLine);
+            }
+            
+            // Phân tích properties
+            else if (trimmedLine.includes(':')) {
+                analysis.properties.push(trimmedLine);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('/*')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeLessFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            selectors: [],
+            properties: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích selectors
+            if (trimmedLine.startsWith('.')) {
+                analysis.selectors.push(trimmedLine);
+            }
+            
+            // Phân tích properties
+            else if (trimmedLine.includes(':')) {
+                analysis.properties.push(trimmedLine);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('/*')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeXmlFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            elements: [],
+            attributes: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích elements
+            if (trimmedLine.startsWith('<')) {
+                analysis.elements.push(trimmedLine);
+            }
+            
+            // Phân tích attributes
+            else if (trimmedLine.includes('=')) {
+                analysis.attributes.push(trimmedLine);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('<!--')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeVueFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            components: [],
+            directives: [],
+            filters: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích components
+            if (trimmedLine.startsWith('<')) {
+                analysis.components.push(trimmedLine);
+            }
+            
+            // Phân tích directives
+            else if (trimmedLine.startsWith('@')) {
+                analysis.directives.push(trimmedLine);
+            }
+            
+            // Phân tích filters
+            else if (trimmedLine.startsWith('filter ')) {
+                analysis.filters.push(trimmedLine);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('<!--')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeJsxFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            elements: [],
+            attributes: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích elements
+            if (trimmedLine.startsWith('<')) {
+                analysis.elements.push(trimmedLine);
+            }
+            
+            // Phân tích attributes
+            else if (trimmedLine.includes('=')) {
+                analysis.attributes.push(trimmedLine);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('/*')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeTsxFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            imports: [],
+            exports: [],
+            interfaces: [],
+            types: [],
+            classes: [],
+            functions: [],
+            decorators: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        let currentInterface = null;
+        let currentClass = null;
+        let inComment = false;
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích imports
+            if (trimmedLine.startsWith('import ')) {
+                analysis.imports.push(trimmedLine);
+            }
+            
+            // Phân tích exports
+            else if (trimmedLine.startsWith('export ')) {
+                analysis.exports.push(trimmedLine);
+            }
+            
+            // Phân tích interfaces
+            else if (trimmedLine.startsWith('interface ')) {
+                currentInterface = {
+                    name: trimmedLine.split('interface ')[1].split(' ')[0],
+                    properties: [],
+                    methods: []
+                };
+                analysis.interfaces.push(currentInterface);
+            }
+            
+            // Phân tích types
+            else if (trimmedLine.startsWith('type ')) {
+                analysis.types.push({
+                    name: trimmedLine.split('type ')[1].split(' ')[0],
+                    definition: trimmedLine
+                });
+            }
+            
+            // Phân tích decorators
+            else if (trimmedLine.startsWith('@')) {
+                analysis.decorators.push(trimmedLine);
+            }
+            
+            // Phân tích classes và methods
+            else if (trimmedLine.startsWith('class ')) {
+                currentClass = {
+                    name: trimmedLine.split('class ')[1].split(' ')[0],
+                    methods: [],
+                    properties: []
+                };
+                analysis.classes.push(currentClass);
+            }
+            
+            // Phân tích functions
+            else if (trimmedLine.match(/^(async\s+)?function\s+\w+/)) {
+                const func = {
+                    name: trimmedLine.split('function ')[1].split('(')[0],
+                    isAsync: trimmedLine.startsWith('async'),
+                    params: trimmedLine.split('(')[1]?.split(')')[0].split(',').map(p => p.trim()) || [],
+                    returnType: trimmedLine.includes(':') ? 
+                              trimmedLine.split(':')[1].split('{')[0].trim() : 
+                              'any'
+                };
+                analysis.functions.push(func);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('//')) {
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.startsWith('/*')) {
+                inComment = true;
+                analysis.commentCount++;
+            }
+            else if (trimmedLine.endsWith('*/')) {
+                inComment = false;
+            }
+            else if (inComment) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeSqlFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            queries: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích queries
+            if (trimmedLine.startsWith('--') || trimmedLine.startsWith('/*') || trimmedLine.startsWith('//')) {
+                analysis.commentCount++;
+            } else {
+                analysis.queries.push(trimmedLine);
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeHqlFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            queries: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích queries
+            if (trimmedLine.startsWith('--') || trimmedLine.startsWith('/*') || trimmedLine.startsWith('//')) {
+                analysis.commentCount++;
+            } else {
+                analysis.queries.push(trimmedLine);
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeIniFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            sections: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích sections
+            if (trimmedLine.startsWith('[') && trimmedLine.endsWith(']')) {
+                analysis.sections.push(trimmedLine.slice(1, -1));
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith(';') || trimmedLine.startsWith('#')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeTomlFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            sections: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích sections
+            if (trimmedLine.startsWith('[') && trimmedLine.endsWith(']')) {
+                analysis.sections.push(trimmedLine.slice(1, -1));
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('#')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeConfFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            sections: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích sections
+            if (trimmedLine.startsWith('[') && trimmedLine.endsWith(']')) {
+                analysis.sections.push(trimmedLine.slice(1, -1));
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('#')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeProtobufFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            messages: [],
+            enums: [],
+            services: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích messages
+            if (trimmedLine.startsWith('message ')) {
+                analysis.messages.push(trimmedLine);
+            }
+            
+            // Phân tích enums
+            else if (trimmedLine.startsWith('enum ')) {
+                analysis.enums.push(trimmedLine);
+            }
+            
+            // Phân tích services
+            else if (trimmedLine.startsWith('service ')) {
+                analysis.services.push(trimmedLine);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('#')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeWebAssemblyFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            sections: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích sections
+            if (trimmedLine.startsWith(';')) {
+                analysis.commentCount++;
+            } else {
+                analysis.sections.push(trimmedLine);
+            }
+        }
+
+        return analysis;
+    }
+
+    async analyzeSolidityFile(filePath) {
+        const content = await fs.readFile(filePath, 'utf8');
+        const lines = content.split('\n');
+        
+        const analysis = {
+            contracts: [],
+            functions: [],
+            lineCount: lines.length,
+            commentCount: 0
+        };
+
+        for (let line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Phân tích contracts
+            if (trimmedLine.startsWith('contract ')) {
+                analysis.contracts.push(trimmedLine);
+            }
+            
+            // Phân tích functions
+            else if (trimmedLine.startsWith('function ')) {
+                analysis.functions.push(trimmedLine);
+            }
+            
+            // Phân tích comments
+            else if (trimmedLine.startsWith('//')) {
+                analysis.commentCount++;
+            }
+        }
+
+        return analysis;
+    }
+}
+
+module.exports = FileAnalyzer;

@@ -1,0 +1,5 @@
+pandas>=1.5.0
+numpy>=1.21.0
+pillow>=9.0.0  # For image processing
+python-magic>=0.4.27  # For file type detection
+chardet>=4.0.0  # For character encoding detection 

@@ -1,0 +1,815 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "System Command Management API",
+        "description": "API for system command execution and monitoring with real-time updates via WebSocket",
+        "version": "1.0.0"
+    },
+    "servers": [{
+        "url": "https://fancy-blindly-reptile.ngrok-free.app",
+        "description": "Ngrok remote server"
+    }],
+    "paths": {
+        "/": {
+            "get": {
+                "operationId": "getServerStatus",
+                "summary": "Kiểm tra trạng thái server",
+                "responses": {
+                    "200": {
+                        "description": "Server đang chạy",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Server is running"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "example": "OK"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/system/info": {
+            "get": {
+                "operationId": "getSystemInfo",
+                "summary": "Lấy thông tin hệ thống",
+                "description": "Trả về thông tin chi tiết về hệ thống như CPU, bộ nhớ, mạng, v.v.",
+                "responses": {
+                    "200": {
+                        "description": "Thông tin hệ thống",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SystemInfo"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Lỗi server",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/system/execute": {
+            "post": {
+                "operationId": "executeCommand",
+                "summary": "Thực thi lệnh hệ thống",
+                "description": "Thực thi một lệnh hệ thống với các tùy chọn như chạy nền, timeout",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CommandRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Lệnh được thực thi thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CommandResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Lỗi thực thi lệnh",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/system/active-commands": {
+            "get": {
+                "operationId": "getActiveCommands",
+                "summary": "Lấy danh sách lệnh đang chạy",
+                "description": "Trả về danh sách các lệnh đang được thực thi",
+                "responses": {
+                    "200": {
+                        "description": "Danh sách lệnh thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ActiveCommand"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/system/command-history": {
+            "get": {
+                "operationId": "getCommandHistory",
+                "summary": "Lấy lịch sử lệnh",
+                "description": "Trả về lịch sử các lệnh đã thực thi",
+                "parameters": [{
+                    "name": "limit",
+                    "in": "query",
+                    "description": "Số lượng lệnh tối đa",
+                    "schema": {
+                        "type": "integer",
+                        "default": 100
+                    }
+                }],
+                "responses": {
+                    "200": {
+                        "description": "Lịch sử lệnh thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/CommandHistory"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/system/stop-command/{id}": {
+            "post": {
+                "operationId": "stopCommand",
+                "summary": "Dừng một lệnh đang chạy",
+                "description": "Dừng một lệnh đang thực thi dựa trên ID",
+                "parameters": [{
+                    "name": "id",
+                    "in": "path",
+                    "required": true,
+                    "description": "ID của lệnh cần dừng",
+                    "schema": {
+                        "type": "string"
+                    }
+                }],
+                "responses": {
+                    "200": {
+                        "description": "Lệnh đã được dừng thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SuccessMessage"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Không tìm thấy lệnh hoặc lệnh đã dừng",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/system/stop-all-commands": {
+            "post": {
+                "operationId": "stopAllCommands",
+                "summary": "Dừng tất cả các lệnh đang chạy",
+                "description": "Dừng tất cả các lệnh đang được thực thi",
+                "responses": {
+                    "200": {
+                        "description": "Tất cả các lệnh đã được dừng",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SuccessMessage"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/data/analyze": {
+            "post": {
+                "operationId": "analyzeData",
+                "summary": "Phân tích dữ liệu file với cập nhật thời gian thực",
+                "description": "Phân tích nội dung và cấu trúc của file với nhiều định dạng khác nhau",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["filePath"],
+                                "properties": {
+                                    "filePath": {
+                                        "type": "string",
+                                        "description": "Đường dẫn đến file cần phân tích"
+                                    },
+                                    "options": {
+                                        "type": "object",
+                                        "properties": {
+                                            "encoding": {
+                                                "type": "string",
+                                                "description": "Encoding của file (utf8, ascii, binary, etc.)"
+                                            },
+                                            "maxSize": {
+                                                "type": "number",
+                                                "description": "Kích thước tối đa để phân tích (bytes)"
+                                            },
+                                            "format": {
+                                                "type": "string",
+                                                "enum": ["auto", "text", "binary", "hex"],
+                                                "default": "auto",
+                                                "description": "Định dạng đọc file"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Bắt đầu phân tích thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DataAnalysisResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Lỗi tham số đầu vào",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Lỗi server",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/data/scan": {
+            "post": {
+                "operationId": "scanFiles",
+                "summary": "Quét và phân tích nhiều file",
+                "description": "Quét và phân tích nội dung của nhiều file trong thư mục",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["directory"],
+                                "properties": {
+                                    "directory": {
+                                        "type": "string",
+                                        "description": "Thư mục cần quét"
+                                    },
+                                    "patterns": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "Các pattern để lọc file (*.txt, *.bin, etc.)"
+                                    },
+                                    "recursive": {
+                                        "type": "boolean",
+                                        "default": false,
+                                        "description": "Quét đệ quy vào thư mục con"
+                                    },
+                                    "options": {
+                                        "type": "object",
+                                        "properties": {
+                                            "maxDepth": {
+                                                "type": "number",
+                                                "description": "Độ sâu tối đa khi quét đệ quy"
+                                            },
+                                            "excludePatterns": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "description": "Các pattern để loại trừ"
+                                            },
+                                            "maxFileSize": {
+                                                "type": "number",
+                                                "description": "Kích thước file tối đa để quét (bytes)"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Bắt đầu quét thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ScanResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/data/status/{taskId}": {
+            "get": {
+                "operationId": "getDataTaskStatus",
+                "summary": "Kiểm tra trạng thái task phân tích",
+                "parameters": [{
+                    "name": "taskId",
+                    "in": "path",
+                    "required": true,
+                    "description": "ID của task phân tích",
+                    "schema": {
+                        "type": "string"
+                    }
+                }],
+                "responses": {
+                    "200": {
+                        "description": "Trạng thái task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TaskStatus"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Không tìm thấy task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Error": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "type": "string",
+                        "description": "Thông báo lỗi"
+                    }
+                }
+            },
+            "SystemInfo": {
+                "type": "object",
+                "properties": {
+                    "hostname": {
+                        "type": "string",
+                        "description": "Tên máy chủ"
+                    },
+                    "platform": {
+                        "type": "string",
+                        "description": "Nền tảng hệ điều hành"
+                    },
+                    "release": {
+                        "type": "string",
+                        "description": "Phiên bản hệ điều hành"
+                    },
+                    "arch": {
+                        "type": "string",
+                        "description": "Kiến trúc CPU"
+                    },
+                    "cpus": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "model": {
+                                    "type": "string"
+                                },
+                                "speed": {
+                                    "type": "number"
+                                },
+                                "times": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "memory": {
+                        "type": "object",
+                        "properties": {
+                            "total": {
+                                "type": "number",
+                                "description": "Tổng bộ nhớ (bytes)"
+                            },
+                            "free": {
+                                "type": "number",
+                                "description": "Bộ nhớ trống (bytes)"
+                            },
+                            "used": {
+                                "type": "number",
+                                "description": "Bộ nhớ đã sử dụng (bytes)"
+                            }
+                        }
+                    },
+                    "network": {
+                        "type": "object",
+                        "description": "Thông tin mạng"
+                    },
+                    "uptime": {
+                        "type": "number",
+                        "description": "Thời gian hoạt động (giây)"
+                    },
+                    "loadavg": {
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        },
+                        "description": "Tải trung bình hệ thống"
+                    },
+                    "userInfo": {
+                        "type": "object",
+                        "properties": {
+                            "uid": {
+                                "type": "number"
+                            },
+                            "gid": {
+                                "type": "number"
+                            },
+                            "username": {
+                                "type": "string"
+                            },
+                            "homedir": {
+                                "type": "string"
+                            },
+                            "shell": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "currentDir": {
+                        "type": "string",
+                        "description": "Thư mục hiện tại"
+                    }
+                }
+            },
+            "CommandRequest": {
+                "type": "object",
+                "required": ["command"],
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "Lệnh cần thực thi"
+                    },
+                    "workingDir": {
+                        "type": "string",
+                        "description": "Thư mục làm việc"
+                    },
+                    "background": {
+                        "type": "boolean",
+                        "description": "Chạy trong background"
+                    },
+                    "timeout": {
+                        "type": "number",
+                        "description": "Thời gian timeout (ms)"
+                    }
+                }
+            },
+            "CommandResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "ID của lệnh"
+                    },
+                    "output": {
+                        "type": "string",
+                        "description": "Output của lệnh"
+                    },
+                    "errorOutput": {
+                        "type": "string",
+                        "description": "Error output của lệnh"
+                    },
+                    "duration": {
+                        "type": "number",
+                        "description": "Thời gian thực thi (ms)"
+                    },
+                    "exitCode": {
+                        "type": "number",
+                        "description": "Exit code của lệnh"
+                    },
+                    "pid": {
+                        "type": "number",
+                        "description": "Process ID (chỉ với background)"
+                    },
+                    "background": {
+                        "type": "boolean",
+                        "description": "Trạng thái background"
+                    }
+                }
+            },
+            "ActiveCommand": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "ID của lệnh"
+                    },
+                    "command": {
+                        "type": "string",
+                        "description": "Lệnh đang chạy"
+                    },
+                    "options": {
+                        "type": "object",
+                        "properties": {
+                            "background": {
+                                "type": "boolean"
+                            },
+                            "workingDir": {
+                                "type": "string"
+                            },
+                            "timeout": {
+                                "type": "number"
+                            }
+                        }
+                    },
+                    "startTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["running", "completed", "failed", "stopped"]
+                    },
+                    "pid": {
+                        "type": "number"
+                    }
+                }
+            },
+            "CommandHistory": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "command": {
+                        "type": "string"
+                    },
+                    "options": {
+                        "type": "object",
+                        "properties": {
+                            "background": {
+                                "type": "boolean"
+                            },
+                            "workingDir": {
+                                "type": "string"
+                            },
+                            "timeout": {
+                                "type": "number"
+                            }
+                        }
+                    },
+                    "startTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "endTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "duration": {
+                        "type": "number"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["completed", "failed", "stopped"]
+                    },
+                    "exitCode": {
+                        "type": "number"
+                    },
+                    "output": {
+                        "type": "string"
+                    },
+                    "errorOutput": {
+                        "type": "string"
+                    }
+                }
+            },
+            "SuccessMessage": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": "Thông báo thành công"
+                    }
+                }
+            },
+            "DataAnalysisResponse": {
+                "type": "object",
+                "properties": {
+                    "taskId": {
+                        "type": "string",
+                        "description": "ID của task phân tích"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["pending", "processing", "completed", "failed"]
+                    },
+                    "progress": {
+                        "type": "number",
+                        "description": "Tiến độ phân tích (0-100)"
+                    },
+                    "result": {
+                        "type": "object",
+                        "properties": {
+                            "fileInfo": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "size": {
+                                        "type": "number"
+                                    },
+                                    "type": {
+                                        "type": "string"
+                                    },
+                                    "encoding": {
+                                        "type": "string"
+                                    },
+                                    "mime": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "content": {
+                                "type": "object",
+                                "properties": {
+                                    "preview": {
+                                        "type": "string",
+                                        "description": "Xem trước nội dung"
+                                    },
+                                    "structure": {
+                                        "type": "object",
+                                        "description": "Cấu trúc dữ liệu phân tích được"
+                                    },
+                                    "metadata": {
+                                        "type": "object",
+                                        "description": "Metadata của file"
+                                    }
+                                }
+                            },
+                            "statistics": {
+                                "type": "object",
+                                "properties": {
+                                    "lineCount": {
+                                        "type": "number"
+                                    },
+                                    "wordCount": {
+                                        "type": "number"
+                                    },
+                                    "byteCount": {
+                                        "type": "number"
+                                    },
+                                    "patterns": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "pattern": {
+                                                    "type": "string"
+                                                },
+                                                "count": {
+                                                    "type": "number"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "ScanResponse": {
+                "type": "object",
+                "properties": {
+                    "taskId": {
+                        "type": "string",
+                        "description": "ID của task quét"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["pending", "processing", "completed", "failed"]
+                    },
+                    "stats": {
+                        "type": "object",
+                        "properties": {
+                            "totalFiles": {
+                                "type": "number"
+                            },
+                            "processedFiles": {
+                                "type": "number"
+                            },
+                            "errorFiles": {
+                                "type": "number"
+                            }
+                        }
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "path": {
+                                    "type": "string"
+                                },
+                                "analysis": {
+                                    "$ref": "#/components/schemas/DataAnalysisResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "TaskStatus": {
+                "type": "object",
+                "properties": {
+                    "taskId": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["pending", "processing", "completed", "failed"]
+                    },
+                    "progress": {
+                        "type": "number"
+                    },
+                    "startTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "endTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "type": "object"
+                    }
+                }
+            }
+        }
+    }
+}

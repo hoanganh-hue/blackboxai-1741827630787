@@ -1,0 +1,5 @@
+Đây là file test để kiểm tra tính năng tải lên file.
+File này sẽ được sử dụng để test API /api/files/upload.
+Nó chứa một số dòng văn bản đơn giản.
+Mỗi dòng có nội dung khác nhau.
+Dòng cuối cùng của file. 

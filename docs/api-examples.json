@@ -1,0 +1,265 @@
+{
+  "info": {
+    "title": "Ví dụ sử dụng API Hệ thống",
+    "description": "Tài liệu hướng dẫn với các ví dụ cụ thể cho từng API endpoint",
+    "version": "1.0.0"
+  },
+
+  "examples": {
+    "systemInfo": {
+      "getInfo": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/system/info",
+        "method": "GET",
+        "operationId": "getSystemInfo",
+        "response": {
+          "platform": "darwin",
+          "arch": "x64",
+          "hostname": "localhost",
+          "cpus": [
+            {
+              "model": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+              "speed": 2400,
+              "times": {
+                "user": 123456,
+                "nice": 0,
+                "sys": 78901,
+                "idle": 456789,
+                "irq": 1234
+              }
+            }
+          ],
+          "totalMemory": 17179869184,
+          "freeMemory": 6442450944,
+          "uptime": 3600,
+          "loadavg": [1.5, 1.7, 1.8],
+          "userInfo": {
+            "username": "user",
+            "uid": 501,
+            "gid": 20,
+            "shell": "/bin/zsh",
+            "homedir": "/Users/user"
+          }
+        },
+        "curl": "curl https://fancy-blindly-reptile.ngrok-free.app/api/system/info"
+      },
+      
+      "getPerformance": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/system/performance",
+        "method": "GET",
+        "operationId": "getSystemPerformance",
+        "response": {
+          "cpu": [
+            {
+              "model": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+              "speed": 2400,
+              "usage": 45.5
+            }
+          ],
+          "memory": {
+            "total": 17179869184,
+            "free": 6442450944,
+            "usage": "62.45"
+          },
+          "loadavg": [1.5, 1.7, 1.8]
+        },
+        "curl": "curl https://fancy-blindly-reptile.ngrok-free.app/api/system/performance"
+      }
+    },
+
+    "commandExecution": {
+      "executeCommand": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/system/execute",
+        "method": "POST",
+        "operationId": "executeCommand",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "command": "ls -la",
+          "directory": "/path/to/dir"
+        },
+        "response": {
+          "success": true,
+          "output": "total 8\ndrwxr-xr-x  2 user  group  160 Mar 15 10:00 .\ndrwxr-xr-x  4 user  group  128 Mar 15 10:00 ..",
+          "directory": "/path/to/dir"
+        },
+        "curl": "curl -X POST https://fancy-blindly-reptile.ngrok-free.app/api/system/execute -H 'Content-Type: application/json' -d '{\"command\":\"ls -la\",\"directory\":\"/path/to/dir\"}'"
+      },
+
+      "listCommands": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/system/commands",
+        "method": "GET",
+        "curl": "curl https://fancy-blindly-reptile.ngrok-free.app/api/system/commands"
+      },
+
+      "stopCommand": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/system/stop/{id}",
+        "method": "POST",
+        "curl": "curl -X POST https://fancy-blindly-reptile.ngrok-free.app/api/system/stop/123"
+      },
+
+      "stopAllCommands": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/system/stop-all",
+        "method": "POST",
+        "curl": "curl -X POST https://fancy-blindly-reptile.ngrok-free.app/api/system/stop-all"
+      }
+    },
+
+    "fileManagement": {
+      "uploadFile": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/files/upload",
+        "method": "POST",
+        "operationId": "uploadFile",
+        "headers": {
+          "Content-Type": "multipart/form-data"
+        },
+        "body": {
+          "file": "(binary)",
+          "destination": "/path/to/upload"
+        },
+        "curl": "curl -X POST https://fancy-blindly-reptile.ngrok-free.app/api/files/upload -F 'file=@file.txt' -F 'destination=/path/to/upload'"
+      },
+
+      "downloadFile": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/files/download/file.txt",
+        "method": "GET",
+        "operationId": "downloadFile",
+        "curl": "curl https://fancy-blindly-reptile.ngrok-free.app/api/files/download/file.txt -o downloaded.txt"
+      },
+
+      "listFiles": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/files/list",
+        "method": "GET",
+        "operationId": "listFiles",
+        "response": {
+          "files": [
+            {
+              "name": "file1.txt",
+              "size": 1234,
+              "modifiedTime": "2024-03-15T10:00:00Z"
+            }
+          ]
+        },
+        "curl": "curl https://fancy-blindly-reptile.ngrok-free.app/api/files/list"
+      },
+
+      "deleteFile": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/files/delete/file.txt",
+        "method": "DELETE",
+        "operationId": "deleteFile",
+        "curl": "curl -X DELETE https://fancy-blindly-reptile.ngrok-free.app/api/files/delete/file.txt"
+      }
+    },
+
+    "analysis": {
+      "analyzeFile": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/analyze/file",
+        "method": "POST",
+        "operationId": "analyzeFile",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "filePath": "/path/to/file"
+        },
+        "response": {
+          "name": "file.txt",
+          "size": 1234,
+          "type": "text/plain",
+          "content": "File content analysis..."
+        },
+        "curl": "curl -X POST https://fancy-blindly-reptile.ngrok-free.app/api/analyze/file -H 'Content-Type: application/json' -d '{\"filePath\":\"/path/to/file\"}'"
+      },
+
+      "analyzeApk": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/analyze/apk",
+        "method": "POST",
+        "operationId": "analyzeApk",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "apkPath": "/path/to/app.apk"
+        },
+        "response": {
+          "packageName": "com.example.app",
+          "versionCode": "1.0.0",
+          "permissions": ["INTERNET", "CAMERA"],
+          "activities": ["MainActivity", "SettingsActivity"]
+        },
+        "curl": "curl -X POST https://fancy-blindly-reptile.ngrok-free.app/api/analyze/apk -H 'Content-Type: application/json' -d '{\"apkPath\":\"/path/to/app.apk\"}'"
+      }
+    },
+
+    "guiControl": {
+      "mouseClick": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/gui/click",
+        "method": "POST",
+        "operationId": "mouseClick",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "x": 100,
+          "y": 200
+        },
+        "response": {
+          "success": true,
+          "message": "Click performed at (100, 200)"
+        },
+        "curl": "curl -X POST https://fancy-blindly-reptile.ngrok-free.app/api/gui/click -H 'Content-Type: application/json' -d '{\"x\":100,\"y\":200}'"
+      },
+
+      "typeText": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/gui/type",
+        "method": "POST",
+        "operationId": "typeText",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "text": "Hello world"
+        },
+        "response": {
+          "success": true,
+          "message": "Text typed successfully"
+        },
+        "curl": "curl -X POST https://fancy-blindly-reptile.ngrok-free.app/api/gui/type -H 'Content-Type: application/json' -d '{\"text\":\"Hello world\"}'"
+      },
+
+      "screenshot": {
+        "url": "https://fancy-blindly-reptile.ngrok-free.app/api/gui/screenshot",
+        "method": "GET",
+        "operationId": "takeScreenshot",
+        "response": {
+          "type": "image/png",
+          "data": "(binary)"
+        },
+        "curl": "curl https://fancy-blindly-reptile.ngrok-free.app/api/gui/screenshot -o screenshot.png"
+      }
+    }
+  },
+
+  "errorHandling": {
+    "common": {
+      "400": "Lỗi dữ liệu gửi lên không hợp lệ",
+      "404": "Không tìm thấy endpoint hoặc resource", 
+      "500": "Lỗi máy chủ khi thực thi lệnh"
+    },
+    "solutions": {
+      "commandFailed": "Kiểm tra cú pháp lệnh và quyền thực thi",
+      "invalidDirectory": "Kiểm tra đường dẫn thư mục tồn tại",
+      "networkError": "Kiểm tra kết nối mạng và domain ngrok",
+      "fileNotFound": "Kiểm tra lại đường dẫn file",
+      "permissionDenied": "Kiểm tra quyền truy cập thư mục/file"
+    }
+  },
+
+  "bestPractices": {
+    "1": "Luôn kiểm tra response.success trước khi xử lý output",
+    "2": "Thêm try-catch để bắt lỗi khi gọi API",
+    "3": "Sử dụng đúng Content-Type header cho từng loại request",
+    "4": "Kiểm tra kích thước file trước khi upload",
+    "5": "Tránh thực thi các lệnh nguy hiểm có thể ảnh hưởng đến hệ thống"
+  }
+}
